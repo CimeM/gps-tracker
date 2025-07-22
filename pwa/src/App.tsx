@@ -27,11 +27,11 @@ function App() {
   }, [location.pathname]);
 
   return (
-    <ThemeProvider>
+    <ThemeProvider> 
       <AuthProvider>
         {isPublicPage ? (
           <Routes>
-            <Route path="/\" element={<Landing />} />
+            <Route path="/" element={<Landing />} />
             <Route path="/pricing" element={<Pricing />} />
           </Routes>
         ) : (

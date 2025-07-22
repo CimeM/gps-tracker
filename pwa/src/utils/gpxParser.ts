@@ -24,6 +24,17 @@ export interface RouteSegment {
   avgSpeed: number;
 }
 
+export interface Waypoint {
+  lat: number;
+  lon: number;
+  ele?: number;
+  time?: Date;
+  name?: string;
+  description?: string;
+  comment?: string;
+  extensions?: any; // Sensor data etc.
+}
+
 export interface Route {
   id: string;
   name: string;
@@ -42,22 +53,56 @@ export interface Route {
     minLon: number;
     maxLon: number;
   };
+  waypoints: Waypoint[];
 }
+
+// best effort : parse the comment to find relevant data points
+function parseWaypointComment(comment?: string): Record<string, any> {
+  if (!comment) return {};
+  const result: Record<string, any> = {};
+
+  // Flatten lines and split by comma
+  const lines = comment.replace(/\n/g, ',').split(',');
+
+  lines.forEach(line => {
+    // Try to match "Label(unit): value"
+    const match = line.match(/([\w\s]+)\(([^)]+)\):\s*([-\d.]+)/);
+    if (match) {
+      const label = match[1].trim().replace(/\s+/g, '_').toLowerCase(); // e.g. temp, pressure
+      const unit = match[2].trim();
+      const value = parseFloat(match[3]);
+      result[label] = value;
+      result[`${label}_unit`] = unit;
+      return;
+    }
+    // Try to match "Label: value"
+    const match2 = line.match(/([\w\s]+):\s*([-\d.]+)/);
+    if (match2) {
+      const label = match2[1].trim().replace(/\s+/g, '_').toLowerCase();
+      const value = parseFloat(match2[2]);
+      result[label] = value;
+      return;
+    }
+  });
+
+  return result;
+}
+
 
 export const parseGpxFile = (file: File): Promise<Route> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const gpx = new GpxParser();
         gpx.parse(e.target?.result as string);
-        
+
         if (gpx.tracks.length === 0) {
           throw new Error('No tracks found in GPX file');
         }
 
-        // Process tracks and create route segments
+        // Parse route segments
         const segments: RouteSegment[] = gpx.tracks.map(track => {
           const points = track.points.map(point => ({
             position: {
@@ -71,8 +116,6 @@ export const parseGpxFile = (file: File): Promise<Route> => {
             cadence: point.extensions?.cad
           }));
 
-          // Calculate segment metrics
-          let distance = 0;
           let elevationGain = 0;
           let elevationLoss = 0;
           let maxSpeed = 0;
@@ -81,14 +124,12 @@ export const parseGpxFile = (file: File): Promise<Route> => {
           for (let i = 1; i < points.length; i++) {
             const prev = points[i - 1];
             const curr = points[i];
-            
-            // Add segment distance
+
             if (curr.speed) {
               totalSpeed += curr.speed;
               maxSpeed = Math.max(maxSpeed, curr.speed);
             }
-            
-            // Calculate elevation change
+
             const eleDiff = curr.position.ele - prev.position.ele;
             if (eleDiff > 0) {
               elevationGain += eleDiff;
@@ -100,11 +141,11 @@ export const parseGpxFile = (file: File): Promise<Route> => {
           const startTime = points[0].position.time;
           const endTime = points[points.length - 1].position.time;
           const duration = endTime.getTime() - startTime.getTime(); // in ms
-          
+
           return {
             points,
             distance: track.distance.total,
-            duration: duration / 1000, // convert to seconds
+            duration: duration / 1000,
             elevationGain,
             elevationLoss,
             maxSpeed,
@@ -112,24 +153,24 @@ export const parseGpxFile = (file: File): Promise<Route> => {
           };
         });
 
-        // Calculate total route metrics
+        // Calculate overall metrics
         const totalDistance = segments.reduce((sum, seg) => sum + seg.distance, 0);
         const totalDuration = segments.reduce((sum, seg) => sum + seg.duration, 0);
         const totalElevationGain = segments.reduce((sum, seg) => sum + seg.elevationGain, 0);
         const totalElevationLoss = segments.reduce((sum, seg) => sum + seg.elevationLoss, 0);
-        
-        // Find start and end points
+
+        // Start/end points
         const firstSegment = segments[0];
         const lastSegment = segments[segments.length - 1];
         const startPoint = firstSegment.points[0].position;
         const endPoint = lastSegment.points[lastSegment.points.length - 1].position;
-        
-        // Calculate bounds
+
+        // Bounds
         let minLat = Number.MAX_VALUE;
         let maxLat = Number.MIN_VALUE;
         let minLon = Number.MAX_VALUE;
         let maxLon = Number.MIN_VALUE;
-        
+
         segments.forEach(segment => {
           segment.points.forEach(point => {
             const { lat, lon } = point.position;
@@ -140,7 +181,26 @@ export const parseGpxFile = (file: File): Promise<Route> => {
           });
         });
 
-        // Create the route object
+        // Parse waypoints
+        const waypoints: Waypoint[] = Array.isArray(gpx.waypoints)
+          ? gpx.waypoints.map(wpt => {
+              const commentData = parseWaypointComment(wpt.cmt);
+              // Merge extensions and commentData
+              const extensions = { ...(wpt.extensions || {}), ...commentData };
+              return {
+                lat: wpt.lat,
+                lon: wpt.lon,
+                ele: wpt.ele,
+                time: wpt.time ? new Date(wpt.time) : undefined,
+                name: wpt.name,
+                description: wpt.desc,
+                comment: wpt.cmt,
+                extensions,
+              };
+            })
+          : [];
+
+        // --- Route object ---
         const route: Route = {
           id: `route_${Date.now()}`,
           name: file.name.replace('.gpx', '') || 'Unnamed Route',
@@ -158,24 +218,25 @@ export const parseGpxFile = (file: File): Promise<Route> => {
             maxLat,
             minLon,
             maxLon
-          }
+          },
+          waypoints // always present
         };
-        
+
         resolve(route);
       } catch (error) {
         reject(error);
       }
     };
-    
+
     reader.onerror = () => {
       reject(new Error('Error reading GPX file'));
     };
-    
+
     reader.readAsText(file);
   });
 };
 
-// Helper functions for route data
+// Helper functions for route data (unchanged)
 export const formatDistance = (meters: number): string => {
   if (meters < 1000) {
     return `${meters.toFixed(0)}m`;
@@ -187,7 +248,7 @@ export const formatDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = Math.floor(seconds % 60);
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m ${remainingSeconds}s`;
   }
@@ -202,7 +263,6 @@ export const formatElevation = (meters: number): string => {
 };
 
 export const formatSpeed = (metersPerSecond: number): string => {
-  // Convert to km/h
   const kmh = metersPerSecond * 3.6;
   return `${kmh.toFixed(1)} km/h`;
 };

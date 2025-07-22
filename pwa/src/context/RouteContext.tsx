@@ -1,11 +1,21 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { Route, parseGpxFile } from '../utils/gpxParser';
 import { useSync } from './SyncContext';
 import { useAuth } from './AuthContext';
-import { firebaseService } from '../services/firebaseService';
+import { apiService as firebaseService } from '../services/apiService';
+
+
+interface RouteGroup {
+  id: string;
+  name: string;
+  color: string;
+  routeIds: string[];
+}
 
 interface RouteContextType {
   routes: Route[];
+  groups: RouteGroup[]
+  setGroups: Dispatch<SetStateAction<RouteGroup[]>>;
   addRoute: (file: File) => Promise<boolean>;
   getRoute: (id: string) => Route | undefined;
   deleteRoute: (id: string) => void;
@@ -28,6 +38,15 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [loading, setLoading] = useState(false);
   const { markForSync } = useSync();
   const { user, userProfile } = useAuth();
+
+  // Load groups from localStorage
+  const [groups, setGroups] = useState<RouteGroup[]>(() => {
+    const saved = localStorage.getItem('routeGroups');
+    return saved ? JSON.parse(saved) : [
+      // { id: 'recent', name: 'Recent Routes', color: '#0F7BFF', routeIds: [] },
+      { id: 'favorites', name: 'Favorites', color: '#F59E0B', routeIds: [] }
+    ];
+  });
 
   // Load routes from localStorage on mount (fallback for offline)
   useEffect(() => {
@@ -55,13 +74,18 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [routes]);
 
+  
+  // const setGroups = async (file: File): Promise<boolean> => {
+  //   try {
+  //     setLoading(true);
+  // }
   const loadFirebaseRoutes = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
       const firebaseRoutes = await firebaseService.getUserRoutes(user.uid);
-      
+      console.log("firebaseRoutes", firebaseRoutes);
       // Convert Firebase routes back to local Route format
       const localRoutes: Route[] = firebaseRoutes.map(fbRoute => ({
         ...fbRoute,
@@ -93,7 +117,8 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       const route = await parseGpxFile(file);
-      
+      console.log("parsed route: ");
+      console.log(route);
       // Add to local state immediately for better UX
       setRoutes(prevRoutes => [...prevRoutes, route]);
       
@@ -155,6 +180,8 @@ export const RouteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <RouteContext.Provider value={{ 
       routes, 
+      groups,
+      setGroups,
       addRoute, 
       getRoute, 
       deleteRoute, 

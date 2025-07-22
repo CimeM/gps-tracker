@@ -106,7 +106,7 @@ const Pricing: React.FC = () => {
               <div className="bg-primary text-white p-2 rounded-lg">
                 <MapPin size={20} />
               </div>
-              <span className="text-xl font-bold">GPS Route Tracker</span>
+              <span className="text-xl font-bold">TracSync</span>
             </Link>
             
             <div className="flex items-center gap-4">
@@ -339,7 +339,7 @@ const Pricing: React.FC = () => {
         <div className="text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Start Tracking?</h2>
           <p className="text-xl text-text-light mb-8">
-            Join thousands of adventurers who trust GPS Route Tracker for their journey analytics.
+            Join thousands of adventurers who trust TracSync for their journey analytics.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

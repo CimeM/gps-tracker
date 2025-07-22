@@ -19,10 +19,19 @@ import RouteMetricsChart from '../components/routes/RouteMetricsChart';
 const RouteDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getRoute, deleteRoute } = useRoutes();
+  const { getRoute, deleteRoute, groups, setGroups } = useRoutes();
   const [route, setRoute] = useState(id ? getRoute(id) : undefined);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(() => {
+    const group = groups.find(g => g.routeIds.includes(id));
+    return group ? group.id : '';
+  });
+
+  useEffect(() => {
+    const group = groups.find(g => g.routeIds.includes(id));
+    setSelectedGroupId(group ? group.id : '');
+  }, [groups, id]);
+
   useEffect(() => {
     if (id) {
       const routeData = getRoute(id);
@@ -41,7 +50,7 @@ const RouteDetails: React.FC = () => {
   const handleDelete = () => {
     if (id) {
       deleteRoute(id);
-      navigate('/');
+      navigate('/dashboard');
     }
   };
   
@@ -79,6 +88,45 @@ const RouteDetails: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          <select
+            className="btn btn-outline mr-1"
+            value={selectedGroupId}
+            onChange={e => {
+              // if route is "" -> remove from all groups
+              if (route) {
+                const updatedGroups = groups.map(group => ({
+                  ...group,
+                  routeIds: group.routeIds.filter(rid => rid !== route.id)
+                }));
+                setGroups(updatedGroups);
+                localStorage.setItem('routeGroups', JSON.stringify(updatedGroups));
+              }
+
+              const groupId = e.target.value;
+              setSelectedGroupId(groupId);
+              if (groupId && route) {
+                const updatedGroups = groups.map(group => {
+                  // Remove route.id from all groups
+                  const filteredRouteIds = group.routeIds.filter(rid => rid !== route.id);
+                  // Add to the selected group
+                  if (group.id === groupId) {
+                    return { ...group, routeIds: [...filteredRouteIds, route.id] };
+                  }
+                  return { ...group, routeIds: filteredRouteIds };
+                });
+                setGroups(updatedGroups);
+                localStorage.setItem('routeGroups', JSON.stringify(updatedGroups));
+              }
+            }}
+          >
+            <option value="">Add to group...</option>
+            {groups.map(group => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+
           <button 
             onClick={handleShare}
             className="btn btn-outline"

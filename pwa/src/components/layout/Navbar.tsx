@@ -27,7 +27,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
       case location.pathname === '/settings':
         return 'Settings';
       default:
-        return 'GPS Route Tracker';
+        return 'TracSync';
     }
   };
 
@@ -80,7 +80,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
               </svg>
             </div>
             <h1 className="text-xl font-bold tracking-tight hidden sm:block">
-              GPS Route Tracker
+              TracSync
             </h1>
           </Link>
         </div>
@@ -115,15 +115,20 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
             <div className="relative group">
               <button className="flex items-center gap-2 p-2 rounded-lg text-text-light hover:bg-background transition-colors">
                 {user.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    alt={user.displayName || 'User'} 
+                  <img
+                    src={user.photoURL}
+                    alt={user.displayName || 'User'}
                     className="w-6 h-6 rounded-full"
+                    onError={(e) => {
+                      e.target.onerror = null; // Prevents infinite loop if fallback fails
+                      e.target.src = '/default-avatar.png'; // Path to your fallback image
+                    }}
                   />
                 ) : (
                   <User size={20} />
                 )}
-                <span className="hidden sm:block text-sm font-medium">
+                {/* Hide name on mobile */}
+                <span className="hidden sm:block ml-2 text-sm font-medium">
                   {user.displayName || 'User'}
                 </span>
               </button>
@@ -144,12 +149,12 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
                   >
                     Settings
                   </Link>
-                  <Link 
+                  {/* <Link 
                     to="/pricing" 
                     className="block px-3 py-2 text-sm hover:bg-background transition-colors"
                   >
                     Upgrade Plan
-                  </Link>
+                  </Link> */}
                   <button 
                     onClick={handleLogout}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-background transition-colors flex items-center gap-2"

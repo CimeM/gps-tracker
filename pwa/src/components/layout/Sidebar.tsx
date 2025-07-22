@@ -17,7 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const navItems = [
     { 
       title: 'Dashboard', 
-      path: '/', 
+      path: '/dashboard', 
       icon: <LayoutDashboard size={20} /> 
     },
     { 
@@ -55,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <div className="bg-primary text-white p-1.5 rounded-lg">
               <Map size={20} />
             </div>
-            <h2 className="text-xl font-bold">Route Tracker</h2>
+            <h2 className="text-xl font-bold">TracSync</h2>
           </div>
           
           <button
@@ -91,7 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
           <div className="text-sm text-text-light">
-            <p>GPS Route Tracker v0.1.0</p>
+            <p>TracSync v0.1.0</p>
             <p className="mt-1">Local storage: {calculateStorageUsage()}</p>
           </div>
         </div>

@@ -70,7 +70,7 @@ const UploadRoute: React.FC = () => {
     try {
       const success = await addRoute(file);
       if (success) {
-        navigate('/');
+        navigate('/dashboard');
       } else {
         setError('Failed to parse GPX file');
       }

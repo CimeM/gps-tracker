@@ -8,8 +8,11 @@ import {
   onAuthStateChanged,
   updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, googleProvider, db } from '../config/firebase';
+
+// import { doc, setDoc, getDoc } from 'firebase/firestore';
+
+import { apiService } from '../services/apiService';
+import { auth } from '../config/firebase';
 
 interface UserProfile {
   uid: string;
@@ -67,9 +70,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserProfile = async (uid: string) => {
     try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
+      const userDoc = await apiService.getUserProfile( uid );
+      if (userDoc) {
+        const data = userDoc;
         setUserProfile({
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
@@ -96,8 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     try {
-      await setDoc(doc(db, 'users', user.uid), {
-        ...userProfile,
+      // create/owerwrite user profile
+      await apiService.putUserProfile({...userProfile,
         createdAt: new Date(),
         lastLogin: new Date()
       });
@@ -124,9 +127,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithEmailAndPassword(auth, email, password);
       // Update last login
       if (auth.currentUser) {
-        await setDoc(doc(db, 'users', auth.currentUser.uid), {
+        await apiService.putUserProfile({...userProfile,
           lastLogin: new Date()
-        }, { merge: true });
+        });
+        // await setDoc(doc(db, 'users', auth.currentUser.uid), {
+        //   lastLogin: new Date()
+        // }, { merge: true });
       }
     } catch (error) {
       console.error('Error signing in:', error);
@@ -139,14 +145,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { user } = await signInWithPopup(auth, googleProvider);
       
       // Check if user profile exists, if not create one
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (!userDoc.exists()) {
+      const userDoc = await apiService.getUserProfile( uid );
+      if (userDoc) {     
         await createUserProfile(user);
       } else {
         // Update last login
-        await setDoc(doc(db, 'users', user.uid), {
+
+        await apiService.putUserProfile({...userProfile,
           lastLogin: new Date()
-        }, { merge: true });
+        });
       }
     } catch (error) {
       console.error('Error signing in with Google:', error);
@@ -168,7 +175,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
 
     try {
-      await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
+      // set updates for the user profile
+      await apiService.putUserProfile({...userProfile,
+          updates
+      });
+      // await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
       setUserProfile(prev => prev ? { ...prev, ...updates } : null);
     } catch (error) {
       console.error('Error updating user profile:', error);

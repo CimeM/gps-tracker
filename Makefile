@@ -10,7 +10,7 @@ NAMESPACE := langapi
 
 KUBE_CONTEXT := default
 
-APIV2TAG := apiv2.28
+APIV2TAG := apiv2.29
 
 demo: 
 	docker compose up --build  && docker compose rm 
